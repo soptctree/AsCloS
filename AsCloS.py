@@ -7,7 +7,7 @@ import os
 import mysql.connector
 
 # --- CONFIGURACIÓN DE IDENTIDAD ---
-NUMERO_NEGOCIO = "50588325774" 
+NUMERO_NEGOCIO = "50558222234" 
 COLOR_ACENTO = "#d32f2f"
 CLAVE_SECRETA = 210825 # Para Firma Digital
 CLAVE_ADMIN = "210825" # Contraseña para tu panel invisible
