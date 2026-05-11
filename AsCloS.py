@@ -135,21 +135,46 @@ else:
     subtotal = 0
 
     if not df_menu.empty:
-        st.markdown("<div class='category-header'>🍴 NUESTRO MENÚ</div>", unsafe_allow_html=True)
-        for _, row in df_menu.iterrows():
+        st.markdown("<div class='category-header'>🥩 NUESTRO MENÚ</div>", unsafe_allow_html=True)
+        
+        # Agrupamos los productos que tienen el mismo nombre
+        nombres_unicos = df_menu['nombre'].unique()
+
+        for nombre in nombres_unicos:
+            # Filtramos todas las variantes de este producto (ej: el de 80 y el de 100)
+            variantes = df_menu[df_menu['nombre'] == nombre]
+            primera_variante = variantes.iloc[0] # Para sacar la foto y el ID base
+            
             col_img, col_info = st.columns([1, 2])
+            
             with col_img:
-                if os.path.exists(row['imagen_url']): st.image(row['imagen_url'], use_container_width=True)
+                if os.path.exists(primera_variante['imagen_url']):
+                    st.image(primera_variante['imagen_url'], use_container_width=True)
+            
             with col_info:
-                st.markdown(f"**{row['nombre']}**")
-                st.markdown(f"<span class='price-tag'>C$ {row['precio_base']}</span>", unsafe_allow_html=True)
-                cant = st.number_input("Cantidad:", min_value=0, step=1, key=f"p_{row['id']}")
+                st.markdown(f"**{nombre}**")
+                
+                # SI TIENE MÁS DE UN PRECIO (Doble selección)
+                if len(variantes) > 1:
+                    lista_precios = variantes['precio_base'].tolist()
+                    precio_elegido = st.radio(
+                        f"Tamaño para {nombre}:", 
+                        options=lista_precios,
+                        horizontal=True,
+                        key=f"radio_{nombre}"
+                    )
+                else:
+                    # SI TIENE UN SOLO PRECIO (Normal)
+                    precio_elegido = primera_variante['precio_base']
+                    st.markdown(f"<span class='price-tag'>C$ {precio_elegido}</span>", unsafe_allow_html=True)
+                
+                cant = st.number_input("Cantidad:", min_value=0, step=1, key=f"cant_{nombre}")
+                
                 if cant > 0:
-                    item_total = row['precio_base'] * cant
-                    carrito.append(f"{cant}x {row['nombre']} (C$ {row['precio_base']} c/u)")
+                    item_total = precio_elegido * cant
+                    carrito.append(f"{cant}x {nombre} (C$ {precio_elegido} c/u)")
                     subtotal += item_total
             st.divider()
-
     # Formulario de Envío
     if subtotal > 0:
         st.markdown("<div class='category-header'>🛵 ENTREGA A DOMICILIO</div>", unsafe_allow_html=True)
