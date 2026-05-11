@@ -40,13 +40,32 @@ query_params = st.query_params
 
 if query_params.get("admin") == "true":
     # =========================================================
-    # VISTA OPERATIVA (SOLO NESTOR)
+    # VISTA OPERATIVA PROTEGIDA
     # =========================================================
     st.title("🔐 Panel de Control AsCloS")
-    password_input = st.text_input("Ingrese la clave de administrador:", type="password")
+
+    # 1. Verificamos si ya se concedió el acceso antes
+    if "autenticado" not in st.session_state:
+        st.session_state.autenticado = False
+
+    # 2. Si NO está autenticado, mostramos el login
+    if not st.session_state.autenticado:
+        password_input = st.text_input("Ingrese la clave de administrador:", type="password")
+        
+        if password_input == CLAVE_ADMIN:
+            st.session_state.autenticado = True
+            st.success("Acceso concedido.")
+            st.rerun() # Recargamos para que desaparezca el cuadro de texto
+        elif password_input != "":
+            st.error("Clave incorrecta.")
     
-    if password_input == CLAVE_ADMIN:
-        st.success("Acceso concedido.")
+    # 3. Si YA está autenticado, mostramos el contenido directamente
+    else:
+        # Botón opcional para cerrar sesión y volver a pedir clave
+        if st.sidebar.button("🔒 Cerrar Sesión Admin"):
+            st.session_state.autenticado = False
+            st.rerun()
+
         tab1, tab2 = st.tabs(["📋 Historial de Pedidos", "💰 Gestionar Precios"])
         
         with tab1:
