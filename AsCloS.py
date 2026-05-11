@@ -59,46 +59,61 @@ if query_params.get("admin") == "true":
                 st.error(f"Error al cargar pedidos: {e}")
 
         with tab2:
-            st.subheader("Editar Precios del Menú")
+            st.subheader("🛠️ Editor Maestro de Menú")
+            st.caption("Cambia nombres, precios o apaga productos. Usa el '+' para agregar nuevos platos.")
+            
             try:
                 conn = conectar_db()
-                # Traemos todos los productos para editar
                 df_prods = pd.read_sql("SELECT * FROM productos", conn)
                 
-                # CONFIGURACIÓN DE LA TABLA EDITABLE
+                # CONFIGURACIÓN AVANZADA DEL EDITOR
                 editado = st.data_editor(
-                    df_prods, 
-                    column_order=("nombre", "precio_base", "disponible"),
-                    # Permite añadir nuevas filas y borrar
-                    num_rows="dynamic", 
-                    # Configuramos columnas específicas
+                    df_prods,
+                    column_order=("nombre", "precio_base", "disponible", "imagen_url"),
+                    num_rows="dynamic", # <--- ESTO permite agregar/quitar filas con el '+'
                     column_config={
                         "nombre": st.column_config.TextColumn("Nombre del Producto", required=True),
-                        "precio_base": st.column_config.NumberColumn("Precio C$", min_value=0),
-                        "disponible": st.column_config.CheckboxColumn("¿Vender Hoy?", default=True)
+                        "precio_base": st.column_config.NumberColumn("Precio C$", min_value=0, format="C$ %d"),
+                        "disponible": st.column_config.CheckboxColumn("¿Vender Hoy?", default=True),
+                        "imagen_url": st.column_config.SelectboxColumn(
+                            "Foto (Archivo)", 
+                            options=[
+                                "asado.jpeg", "pollo.jpeg", "cerdo.jpeg", "res.jpeg", 
+                                "sopa.jpeg", "taco.jpeg", "alitas.jpeg", "arros.jpeg"
+                            ],
+                            help="Selecciona el archivo .jpeg que subiste a GitHub"
+                        )
                     },
                     use_container_width=True,
-                    key="editor_menu"
+                    key="editor_maestro"
                 )
                 
-                if st.button("💾 Guardar Cambios"):
+                if st.button("💾 Guardar Cambios en el Menú"):
                     cursor = conn.cursor()
-                    # 1. Limpiamos la tabla para insertar lo nuevo (Sincronización total)
-                    cursor.execute("DELETE FROM productos") 
+                    # Sincronización total: Limpiamos y reinsertamos
+                    cursor.execute("DELETE FROM productos")
                     
-                    # 2. Insertamos fila por fila lo que quedó en tu tabla
-                    for index, row in editado.iterrows():
-                        cursor.execute(
-                            "INSERT INTO productos (nombre, precio_base, disponible, categoria, imagen_url) VALUES (%s, %s, %s, %s, %s)", 
-                            (row['nombre'], row['precio_base'], row['disponible'], "General", "asado.jpeg")
-                        )
+                    for _, row in editado.iterrows():
+                        # Validamos que el nombre no esté vacío
+                        if row['nombre']:
+                            sql = """INSERT INTO productos 
+                                     (nombre, precio_base, disponible, imagen_url, categoria) 
+                                     VALUES (%s, %s, %s, %s, %s)"""
+                            cursor.execute(sql, (
+                                row['nombre'], 
+                                row['precio_base'], 
+                                row['disponible'], 
+                                row['imagen_url'],
+                                "General"
+                            ))
                     
                     conn.commit()
                     conn.close()
-                    st.success("✅ Menú actualizado. La sopa (y lo demás) se mostrará según lo que marcaste.")
+                    st.success("✅ ¡Menú actualizado con éxito! Los clientes ya ven los cambios.")
                     st.rerun()
+                    
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error de conexión: {e}")
     elif password_input != "":
         st.error("Clave incorrecta.")
 
