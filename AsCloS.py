@@ -48,7 +48,7 @@ if query_params.get("admin") == "true":
     if "autenticado" not in st.session_state:
         st.session_state.autenticado = False
 
-    # 2. Lógica de Login
+    # 2. Lógica de Login: Solo se muestra si no ha entrado aún
     if not st.session_state.autenticado:
         password_input = st.text_input("Ingrese la clave de administrador:", type="password")
         
@@ -59,9 +59,9 @@ if query_params.get("admin") == "true":
         elif password_input != "":
             st.error("Clave incorrecta.")
     
-    # 3. Si YA está autenticado, mostramos las pestañas
+    # 3. Si YA está autenticado, mostramos las pestañas y ocultamos el login
     else:
-        # Botón en la barra lateral para salir
+        # Botón para cerrar sesión en la barra lateral
         if st.sidebar.button("🔒 Cerrar Sesión Admin"):
             st.session_state.autenticado = False
             st.rerun()
@@ -84,8 +84,10 @@ if query_params.get("admin") == "true":
             
             try:
                 conn = conectar_db()
+                # Traemos la tabla actual de la base de datos
                 df_prods = pd.read_sql("SELECT * FROM productos", conn)
                 
+                # CONFIGURACIÓN DEL EDITOR
                 editado = st.data_editor(
                     df_prods,
                     column_order=("nombre", "precio_base", "disponible", "imagen_url"),
@@ -96,30 +98,24 @@ if query_params.get("admin") == "true":
                         "disponible": st.column_config.CheckboxColumn("¿Vender Hoy?", default=True),
                         "imagen_url": st.column_config.TextColumn(
                             "Foto (Archivo)", 
-                            help="Escribe el nombre del archivo como está en GitHub, ej: baho.jpeg"
+                            help="Nombre del archivo en GitHub, ej: asado.jpeg"
                         )
                     },
                     use_container_width=True,
-                    key="editor_maestro_v3"
+                    key="editor_maestro_vfinal"
                 )
                 
                 if st.button("💾 Guardar Cambios en el Menú"):
                     cursor = conn.cursor()
+                    # Limpiamos para actualizar
                     cursor.execute("DELETE FROM productos")
                     
+                    # Insertamos los datos del editor
                     for _, row in editado.iterrows():
                         if row['nombre']:
                             foto = row['imagen_url'] if row['imagen_url'] else "asado.jpeg"
-                            sql = """INSERT INTO productos 
-                                     (nombre, precio_base, disponible, imagen_url, categoria) 
-                                     VALUES (%s, %s, %s, %s, %s)"""
-                            cursor.execute(sql, (
-                                row['nombre'], 
-                                row['precio_base'], 
-                                row['disponible'], 
-                                foto,
-                                "General"
-                            ))
+                            sql = "INSERT INTO productos (nombre, precio_base, disponible, imagen_url, categoria) VALUES (%s, %s, %s, %s, %s)"
+                            cursor.execute(sql, (row['nombre'], row['precio_base'], row['disponible'], foto, "General"))
                     
                     conn.commit()
                     conn.close()
@@ -127,7 +123,7 @@ if query_params.get("admin") == "true":
                     st.rerun()
                     
             except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                st.error(f"Error en el editor: {e}")
     elif password_input != "":
         st.error("Clave incorrecta.")
 
