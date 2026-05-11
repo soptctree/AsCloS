@@ -56,7 +56,6 @@ if query_params.get("admin") == "true":
             st.session_state.autenticado = True
             st.success("Acceso concedido.")
             st.rerun() 
-        # Aquí es donde estaba el error: el elif debe ir antes que el ELSE principal
         elif password_input != "":
             st.error("Clave incorrecta.")
     
@@ -81,19 +80,16 @@ if query_params.get("admin") == "true":
 
         with tab2:
             st.subheader("🛠️ Editor Maestro de Menú")
-            # Aquí pegas tu código del st.data_editor que ya teníamos
             st.caption("Escribe el nombre del producto, el precio y el nombre exacto de la foto (ej: baho.jpeg).")
             
             try:
                 conn = conectar_db()
-                # Traemos la tabla actual de la base de datos
                 df_prods = pd.read_sql("SELECT * FROM productos", conn)
                 
-                # CONFIGURACIÓN DEL EDITOR CORREGIDA (Sin el error de placeholder)
                 editado = st.data_editor(
                     df_prods,
                     column_order=("nombre", "precio_base", "disponible", "imagen_url"),
-                    num_rows="dynamic", # Permite usar el '+' para agregar filas
+                    num_rows="dynamic",
                     column_config={
                         "nombre": st.column_config.TextColumn("Nombre del Producto", required=True),
                         "precio_base": st.column_config.NumberColumn("Precio C$", min_value=0, format="C$ %d"),
@@ -109,15 +105,11 @@ if query_params.get("admin") == "true":
                 
                 if st.button("💾 Guardar Cambios en el Menú"):
                     cursor = conn.cursor()
-                    # 1. Limpiamos para evitar duplicados
                     cursor.execute("DELETE FROM productos")
                     
-                    # 2. Insertamos lo que tienes en pantalla
                     for _, row in editado.iterrows():
-                        if row['nombre']: # Solo si tiene nombre
-                            # Si la celda de foto está vacía, ponemos asado.jpeg por defecto
+                        if row['nombre']:
                             foto = row['imagen_url'] if row['imagen_url'] else "asado.jpeg"
-                            
                             sql = """INSERT INTO productos 
                                      (nombre, precio_base, disponible, imagen_url, categoria) 
                                      VALUES (%s, %s, %s, %s, %s)"""
@@ -131,7 +123,7 @@ if query_params.get("admin") == "true":
                     
                     conn.commit()
                     conn.close()
-                    st.success("✅ ¡Menú actualizado! Ya puedes ver los cambios.")
+                    st.success("✅ ¡Menú actualizado!")
                     st.rerun()
                     
             except Exception as e:
