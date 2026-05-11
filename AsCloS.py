@@ -62,18 +62,41 @@ if query_params.get("admin") == "true":
             st.subheader("Editar Precios del Menú")
             try:
                 conn = conectar_db()
+                # Traemos todos los productos para editar
                 df_prods = pd.read_sql("SELECT * FROM productos", conn)
-                # Editor de tabla interactivo
-                editado = st.data_editor(df_prods, column_order=("nombre", "precio_base", "disponible"), num_rows="dynamic")
+                
+                # CONFIGURACIÓN DE LA TABLA EDITABLE
+                editado = st.data_editor(
+                    df_prods, 
+                    column_order=("nombre", "precio_base", "disponible"),
+                    # Permite añadir nuevas filas y borrar
+                    num_rows="dynamic", 
+                    # Configuramos columnas específicas
+                    column_config={
+                        "nombre": st.column_config.TextColumn("Nombre del Producto", required=True),
+                        "precio_base": st.column_config.NumberColumn("Precio C$", min_value=0),
+                        "disponible": st.column_config.CheckboxColumn("¿Vender Hoy?", default=True)
+                    },
+                    use_container_width=True,
+                    key="editor_menu"
+                )
                 
                 if st.button("💾 Guardar Cambios"):
                     cursor = conn.cursor()
+                    # 1. Limpiamos la tabla para insertar lo nuevo (Sincronización total)
+                    cursor.execute("DELETE FROM productos") 
+                    
+                    # 2. Insertamos fila por fila lo que quedó en tu tabla
                     for index, row in editado.iterrows():
-                        cursor.execute("UPDATE productos SET precio_base=%s, disponible=%s WHERE id=%s", 
-                                     (row['precio_base'], row['disponible'], row['id']))
+                        cursor.execute(
+                            "INSERT INTO productos (nombre, precio_base, disponible, categoria, imagen_url) VALUES (%s, %s, %s, %s, %s)", 
+                            (row['nombre'], row['precio_base'], row['disponible'], "General", "asado.jpeg")
+                        )
+                    
                     conn.commit()
                     conn.close()
-                    st.success("Cambios guardados. El cliente verá los nuevos precios al recargar.")
+                    st.success("✅ Menú actualizado. La sopa (y lo demás) se mostrará según lo que marcaste.")
+                    st.rerun()
             except Exception as e:
                 st.error(f"Error: {e}")
     elif password_input != "":
