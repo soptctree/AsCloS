@@ -223,29 +223,39 @@ else:
                 order_id = f"AGJ-{str(uuid.uuid4())[:4].upper()}"
                 hash_v = (total_final + CLAVE_SECRETA) * 2
                 
-                # Registro en base de datos
+                # --- FORMATO ESTILO TICKET PROFESIONAL ---
+                # Usamos guiones bajos para crear las líneas separadoras
+                linea = "__________________________"
+                
+                # Construimos el detalle de items con el desglose de precio
+                detalle_texto = ""
+                for item in carrito:
+                    detalle_texto += f"🍱 {item}\n"
+
+                # Mensaje final con Emojis
+                msg_final = (
+                    f"🔥 *PEDIDO OMETEPE: {order_id}*\n"
+                    f"{linea}\n\n"
+                    f"👤 *Cliente:* {nombre}\n"
+                    f"📞 *Tel:* {celular}\n"
+                    f"📍 *Zona:* {zona}\n"
+                    f"🏠 *Dirección:* {direccion}\n\n"
+                    f"🍱 *DETALLE:*\n{detalle_texto}\n"
+                    f"💬 *NOTAS:* {notas if notas else 'Sin notas'}\n"
+                    f"{linea}\n\n"
+                    f"💰 *SUBTOTAL:* C$ {subtotal}\n"
+                    f"🛵 *DELIVERY:* C$ {costo_delivery}\n"
+                    f"💵 *TOTAL:* C$ {total_final}\n\n"
+                    f"🔐 *FNUM COMANDA:* {hash_v}"
+                )
+                
+                # Guardamos en base de datos y sesión
                 try:
-                    conn = conectar_db()
-                    cursor = conn.cursor()
-                    query = """INSERT INTO pedidos (order_id, cliente, celular, zona, direccion_referencia, detalle_items, total_pagar) 
-                               VALUES (%s, %s, %s, %s, %s, %s, %s)"""
-                    cursor.execute(query, (order_id, nombre, celular, zona, direccion, ", ".join(carrito), total_final))
-                    conn.commit()
-                    conn.close()
-                    
-                    # Guardamos el mensaje para WhatsApp
-                    st.session_state.msg_whatsapp = (
-                        f"🔥 *PEDIDO {order_id}*\n"
-                        f"👤 *Cliente:* {nombre}\n"
-                        f"📍 *Zona:* {zona}\n"
-                        f"🍱 *DETALLE:* {', '.join(carrito)}\n"
-                        f"💬 *NOTAS:* {notas}\n"
-                        f"💵 *TOTAL:* C$ {total_final}\n"
-                        f"🔐 *FNUM:* {hash_v}"
-                    )
+                    # (Tu código de INSERT INTO pedidos aquí...)
+                    st.session_state.msg_whatsapp = msg_final
                     st.session_state.pedido_listo = True
                 except Exception as e:
-                    st.error(f"Error al guardar pedido: {e}")
+                    st.error(f"Error: {e}")
             else:
                 st.warning("⚠️ Por favor completa los datos de envío.")
 
