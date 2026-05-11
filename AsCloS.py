@@ -10,7 +10,7 @@ import mysql.connector
 NUMERO_NEGOCIO = "50588325774" 
 COLOR_ACENTO = "#d32f2f"
 CLAVE_SECRETA = 210825 # Para Firma Digital
-CLAVE_ADMIN = "Nestor2026" # Contraseña para tu panel invisible
+CLAVE_ADMIN = "210825" # Contraseña para tu panel invisible
 
 st.set_page_config(page_title="Asados García Jiménez - Ometepe", page_icon="🔥", layout="centered")
 
