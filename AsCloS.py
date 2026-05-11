@@ -176,37 +176,102 @@ else:
                     subtotal += item_total
             st.divider()
     # Formulario de Envío
+    # --- RESUMEN VISUAL DEL CARRITO (Antes de enviar) ---
     if subtotal > 0:
-        st.markdown("<div class='category-header'>🛵 ENTREGA A DOMICILIO</div>", unsafe_allow_html=True)
-        zona = st.selectbox("Ubicación:", ["Santa Cruz (Gratis)", "Madroñal (Gratis)", "Balgüe (Gratis)", "Otras zonas (C$ 50)"])
+        st.markdown("<div class='category-header'>🛒 TU CARRITO ACTUAL</div>", unsafe_allow_html=True)
+        
+        # Contenedor con estilo de recibo
+        st.markdown(f"""
+            <div style="background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #eee; box-shadow: 0px 2px 5px rgba(0,0,0,0.05);">
+                <p style="margin: 0; color: #888; font-size: 0.9rem;">Productos seleccionados:</p>
+                <hr style="margin: 10px 0; border: 0; border-top: 1px dashed #ccc;">
+                {"".join([f"<div style='display: flex; justify-content: space-between; margin-bottom: 5px;'><span>{item}</span></div>" for item in carrito])}
+                <hr style="margin: 10px 0; border: 0; border-top: 1px solid #eee;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem; color: {COLOR_ACENTO};">
+                    <span>SUBTOTAL:</span>
+                    <span>C$ {subtotal}</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.write("") # Espacio visual
+
+        # --- SECCIÓN DE ENVÍO Y FORMULARIO ---
+        st.markdown("<div class='category-header'>🛵 DATOS DE ENTREGA</div>", unsafe_allow_html=True)
+        
+        zona = st.selectbox("¿Dónde te entregamos?", 
+                           ["Santa Cruz (Gratis)", "Madroñal (Gratis)", "Balgüe (Gratis)", "Otras zonas (C$ 50)"])
+        
         costo_delivery = 50 if "Otras zonas" in zona else 0
         total_final = subtotal + costo_delivery
 
-        with st.form("comanda"):
-            nombre = st.text_input("Nombre Completo")
-            celular = st.text_input("Número Celular")
-            direccion = st.text_area("Dirección / Referencia")
-            enviar = st.form_submit_button("🚀 GENERAR RESUMEN")
+        with st.form("comanda_final"):
+            col1, col2 = st.columns(2)
+            with col1:
+                nombre = st.text_input("👤 Nombre Completo")
+            with col2:
+                celular = st.text_input("📞 Número de Celular")
+            
+            direccion = st.text_area("🏠 Dirección Exacta / Puntos de Referencia")
+            notas = st.text_input("📝 ¿Alguna nota especial? (Opcional)")
+            
+            st.markdown(f"### Total a pagar: C$ {total_final}")
+            enviar = st.form_submit_button("🚀 GENERAR PEDIDO FINAL", use_container_width=True)
 
-        if enviar and nombre and celular and direccion:
-            order_id = f"AGJ-{str(uuid.uuid4())[:4].upper()}"
-            hash_verificacion = (total_final + CLAVE_SECRETA) * 2
-            try:
-                conn = conectar_db()
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO pedidos (order_id, cliente, celular, zona, direccion_referencia, detalle_items, subtotal, costo_delivery, total_pagar) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)", 
-                             (order_id, nombre, celular, zona, direccion, ", ".join(carrito), subtotal, costo_delivery, total_final))
-                conn.commit()
-                conn.close()
+        if enviar:
+            if nombre and celular and direccion:
+                order_id = f"AGJ-{str(uuid.uuid4())[:4].upper()}"
+                hash_v = (total_final + CLAVE_SECRETA) * 2
                 
-                st.session_state.msg_whatsapp = f"🔥 *PEDIDO {order_id}*\n👤 *Cliente:* {nombre}\n🍱 *DETALLE:* {', '.join(carrito)}\n💵 *TOTAL:* C$ {total_final}\n🔐 *FNUM:* {hash_verificacion}"
-                st.session_state.pedido_listo = True
-            except Exception as e: st.error(f"Error: {e}")
+                # Registro en base de datos
+                try:
+                    conn = conectar_db()
+                    cursor = conn.cursor()
+                    query = """INSERT INTO pedidos (order_id, cliente, celular, zona, direccion_referencia, detalle_items, total_pagar) 
+                               VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                    cursor.execute(query, (order_id, nombre, celular, zona, direccion, ", ".join(carrito), total_final))
+                    conn.commit()
+                    conn.close()
+                    
+                    # Guardamos el mensaje para WhatsApp
+                    st.session_state.msg_whatsapp = (
+                        f"🔥 *PEDIDO {order_id}*\n"
+                        f"👤 *Cliente:* {nombre}\n"
+                        f"📍 *Zona:* {zona}\n"
+                        f"🍱 *DETALLE:* {', '.join(carrito)}\n"
+                        f"💬 *NOTAS:* {notas}\n"
+                        f"💵 *TOTAL:* C$ {total_final}\n"
+                        f"🔐 *FNUM:* {hash_v}"
+                    )
+                    st.session_state.pedido_listo = True
+                except Exception as e:
+                    st.error(f"Error al guardar pedido: {e}")
+            else:
+                st.warning("⚠️ Por favor completa los datos de envío.")
 
+        # --- BOTÓN DE WHATSAPP ---
         if "pedido_listo" in st.session_state:
-            st.success("✅ Pedido registrado.")
+            st.success("✅ ¡Todo listo! Pulsa el botón de abajo para enviarnos tu pedido.")
+            
+            # Botón Principal de WhatsApp
             link = f"https://api.whatsapp.com/send?phone={NUMERO_NEGOCIO}&text={urllib.parse.quote(st.session_state.msg_whatsapp)}"
-            st.link_button("📲 ENVIAR POR WHATSAPP", link, use_container_width=True, type="primary")
-            if st.button("🔄 Nuevo Pedido"):
-                st.session_state.clear()
-                st.rerun()
+            st.link_button("📲 ENVIAR PEDIDO POR WHATSAPP", link, use_container_width=True, type="primary")
+            
+            st.write("") # Espacio separador
+            
+            # --- BOTÓN DE REINICIO ---
+            col_reset, _ = st.columns([1, 1])
+            with col_reset:
+                if st.button("🔄 HACER NUEVO PEDIDO", use_container_width=True):
+                    # Mensaje de despedida temporal
+                    st.toast("¡Gracias por tu pedido! En breve se te confirmará tu pedido. 🍗🔥")
+                    
+                    # Pequeña pausa para que vean el mensaje antes de borrar
+                    import time
+                    time.sleep(2) 
+                    
+                    # Borramos todo y reiniciamos
+                    st.session_state.clear()
+                    st.rerun()
+            
+            st.caption("Nota: Al presionar 'Hacer nuevo pedido', se limpiará tu carrito actual.")
