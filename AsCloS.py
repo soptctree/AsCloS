@@ -60,42 +60,43 @@ if query_params.get("admin") == "true":
 
         with tab2:
             st.subheader("🛠️ Editor Maestro de Menú")
-            st.caption("Cambia nombres, precios o apaga productos. Usa el '+' para agregar nuevos platos.")
+            st.caption("Escribe el nombre del producto, el precio y el nombre exacto de la foto (ej: baho.jpeg).")
             
             try:
                 conn = conectar_db()
+                # Traemos la tabla actual de la base de datos
                 df_prods = pd.read_sql("SELECT * FROM productos", conn)
                 
-                # CONFIGURACIÓN AVANZADA DEL EDITOR
+                # CONFIGURACIÓN DEL EDITOR FLEXIBLE
                 editado = st.data_editor(
                     df_prods,
                     column_order=("nombre", "precio_base", "disponible", "imagen_url"),
-                    num_rows="dynamic", # <--- ESTO permite agregar/quitar filas con el '+'
+                    num_rows="dynamic", # Permite usar el '+' para agregar filas
                     column_config={
                         "nombre": st.column_config.TextColumn("Nombre del Producto", required=True),
                         "precio_base": st.column_config.NumberColumn("Precio C$", min_value=0, format="C$ %d"),
                         "disponible": st.column_config.CheckboxColumn("¿Vender Hoy?", default=True),
-                        "imagen_url": st.column_config.SelectboxColumn(
+                        "imagen_url": st.column_config.TextColumn(
                             "Foto (Archivo)", 
-                            options=[
-                                "asado.jpeg", "pollo.jpeg", "cerdo.jpeg", "res.jpeg", 
-                                "sopa.jpeg", "taco.jpeg", "alitas.jpeg", "arros.jpeg"
-                            ],
-                            help="Selecciona el archivo .jpeg que subiste a GitHub"
+                            help="Escribe el nombre del archivo como está en GitHub, ej: baho.jpeg",
+                            placeholder="nombre_foto.jpeg"
                         )
                     },
                     use_container_width=True,
-                    key="editor_maestro"
+                    key="editor_maestro_v2"
                 )
                 
                 if st.button("💾 Guardar Cambios en el Menú"):
                     cursor = conn.cursor()
-                    # Sincronización total: Limpiamos y reinsertamos
+                    # 1. Limpiamos para evitar duplicados
                     cursor.execute("DELETE FROM productos")
                     
+                    # 2. Insertamos lo que tienes en pantalla
                     for _, row in editado.iterrows():
-                        # Validamos que el nombre no esté vacío
-                        if row['nombre']:
+                        if row['nombre']: # Solo si tiene nombre
+                            # Si no escribiste nada en la foto, ponemos una por defecto
+                            foto = row['imagen_url'] if row['imagen_url'] else "asado.jpeg"
+                            
                             sql = """INSERT INTO productos 
                                      (nombre, precio_base, disponible, imagen_url, categoria) 
                                      VALUES (%s, %s, %s, %s, %s)"""
@@ -103,17 +104,17 @@ if query_params.get("admin") == "true":
                                 row['nombre'], 
                                 row['precio_base'], 
                                 row['disponible'], 
-                                row['imagen_url'],
+                                foto,
                                 "General"
                             ))
                     
                     conn.commit()
                     conn.close()
-                    st.success("✅ ¡Menú actualizado con éxito! Los clientes ya ven los cambios.")
+                    st.success("✅ ¡Menú actualizado! Ya puedes ver los cambios en la vista de cliente.")
                     st.rerun()
                     
             except Exception as e:
-                st.error(f"Error de conexión: {e}")
+                st.error(f"Error: {e}")
     elif password_input != "":
         st.error("Clave incorrecta.")
 
