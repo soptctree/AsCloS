@@ -236,15 +236,11 @@ else:
                 hash_v = (total_final + CLAVE_SECRETA) * 2
                 
                 # --- FORMATO ESTILO TICKET PROFESIONAL ---
-                # Usamos guiones bajos para crear las líneas separadoras
                 linea = "__________________________"
-                
-                # Construimos el detalle de items con el desglose de precio
                 detalle_texto = ""
                 for item in carrito:
                     detalle_texto += f"🍱 {item}\n"
 
-                # Mensaje final con Emojis
                 msg_final = (
                     f"🔥 *PEDIDO OMETEPE: {order_id}*\n"
                     f"{linea}\n\n"
@@ -261,38 +257,45 @@ else:
                     f"🔐 *FNUM COMANDA:* {hash_v}"
                 )
                 
-                # Guardamos en base de datos y sesión
+                # --- GUARDAR EN BASE DE DATOS (INSERT REAL) ---
                 try:
-                    # (Tu código de INSERT INTO pedidos aquí...)
+                    conn = conectar_db()
+                    cursor = conn.cursor()
+                    sql_insert = """INSERT INTO pedidos 
+                                   (order_id, cliente, celular, zona, direccion_referencia, detalle_items, total_pagar) 
+                                   VALUES (%s, %s, %s, %s, %s, %s, %s)"""
+                    # Convertimos el carrito a un solo texto para la DB
+                    items_db = ", ".join(carrito)
+                    cursor.execute(sql_insert, (order_id, nombre, celular, zona, direccion, items_db, total_final))
+                    
+                    conn.commit()
+                    conn.close()
+                    
+                    # Guardamos en sesión para el botón de WhatsApp
                     st.session_state.msg_whatsapp = msg_final
                     st.session_state.pedido_listo = True
+                    st.success(f"✅ Pedido {order_id} generado con éxito.")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error al guardar en base de datos: {e}")
             else:
                 st.warning("⚠️ Por favor completa los datos de envío.")
 
-        # --- BOTÓN DE WHATSAPP ---
+        # --- BOTÓN DE WHATSAPP Y REINICIO ---
         if "pedido_listo" in st.session_state:
-            st.success("✅ ¡Todo listo! Pulsa el botón de abajo para enviarnos tu pedido.")
+            st.markdown("---")
+            st.info("¡Casi listo! Ahora envía el detalle a nuestro WhatsApp para confirmar.")
             
-            # Botón Principal de WhatsApp
             link = f"https://api.whatsapp.com/send?phone={NUMERO_NEGOCIO}&text={urllib.parse.quote(st.session_state.msg_whatsapp)}"
             st.link_button("📲 ENVIAR PEDIDO POR WHATSAPP", link, use_container_width=True, type="primary")
             
-            st.write("") # Espacio separador
+            st.write("") 
             
-            # --- BOTÓN DE REINICIO ---
             col_reset, _ = st.columns([1, 1])
             with col_reset:
                 if st.button("🔄 HACER NUEVO PEDIDO", use_container_width=True):
-                    # Mensaje de despedida temporal
-                    st.toast("¡Gracias por tu pedido! En breve se te confirmará tu pedido. 🍗🔥")
-                    
-                    # Pequeña pausa para que vean el mensaje antes de borrar
+                    st.toast("¡Gracias por tu pedido! En breve se te confirmará. 🍗🔥")
                     import time
                     time.sleep(2) 
-                    
-                    # Borramos todo y reiniciamos
                     st.session_state.clear()
                     st.rerun()
             
