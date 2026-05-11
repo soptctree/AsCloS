@@ -67,7 +67,7 @@ if query_params.get("admin") == "true":
                 # Traemos la tabla actual de la base de datos
                 df_prods = pd.read_sql("SELECT * FROM productos", conn)
                 
-                # CONFIGURACIÓN DEL EDITOR FLEXIBLE
+                # CONFIGURACIÓN DEL EDITOR CORREGIDA (Sin el error de placeholder)
                 editado = st.data_editor(
                     df_prods,
                     column_order=("nombre", "precio_base", "disponible", "imagen_url"),
@@ -78,12 +78,11 @@ if query_params.get("admin") == "true":
                         "disponible": st.column_config.CheckboxColumn("¿Vender Hoy?", default=True),
                         "imagen_url": st.column_config.TextColumn(
                             "Foto (Archivo)", 
-                            help="Escribe el nombre del archivo como está en GitHub, ej: baho.jpeg",
-                            placeholder="nombre_foto.jpeg"
+                            help="Escribe el nombre del archivo como está en GitHub, ej: baho.jpeg"
                         )
                     },
                     use_container_width=True,
-                    key="editor_maestro_v2"
+                    key="editor_maestro_v3"
                 )
                 
                 if st.button("💾 Guardar Cambios en el Menú"):
@@ -94,7 +93,7 @@ if query_params.get("admin") == "true":
                     # 2. Insertamos lo que tienes en pantalla
                     for _, row in editado.iterrows():
                         if row['nombre']: # Solo si tiene nombre
-                            # Si no escribiste nada en la foto, ponemos una por defecto
+                            # Si la celda de foto está vacía, ponemos asado.jpeg por defecto
                             foto = row['imagen_url'] if row['imagen_url'] else "asado.jpeg"
                             
                             sql = """INSERT INTO productos 
@@ -110,11 +109,11 @@ if query_params.get("admin") == "true":
                     
                     conn.commit()
                     conn.close()
-                    st.success("✅ ¡Menú actualizado! Ya puedes ver los cambios en la vista de cliente.")
+                    st.success("✅ ¡Menú actualizado! Ya puedes ver los cambios.")
                     st.rerun()
                     
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Error de conexión: {e}")
     elif password_input != "":
         st.error("Clave incorrecta.")
 
