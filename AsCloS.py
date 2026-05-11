@@ -44,24 +44,25 @@ if query_params.get("admin") == "true":
     # =========================================================
     st.title("🔐 Panel de Control AsCloS")
 
-    # 1. Verificamos si ya se concedió el acceso antes
+    # 1. Inicializar el estado de autenticación si no existe
     if "autenticado" not in st.session_state:
         st.session_state.autenticado = False
 
-    # 2. Si NO está autenticado, mostramos el login
+    # 2. Lógica de Login
     if not st.session_state.autenticado:
         password_input = st.text_input("Ingrese la clave de administrador:", type="password")
         
         if password_input == CLAVE_ADMIN:
             st.session_state.autenticado = True
             st.success("Acceso concedido.")
-            st.rerun() # Recargamos para que desaparezca el cuadro de texto
+            st.rerun() 
+        # Aquí es donde estaba el error: el elif debe ir antes que el ELSE principal
         elif password_input != "":
             st.error("Clave incorrecta.")
     
-    # 3. Si YA está autenticado, mostramos el contenido directamente
+    # 3. Si YA está autenticado, mostramos las pestañas
     else:
-        # Botón opcional para cerrar sesión y volver a pedir clave
+        # Botón en la barra lateral para salir
         if st.sidebar.button("🔒 Cerrar Sesión Admin"):
             st.session_state.autenticado = False
             st.rerun()
@@ -69,6 +70,7 @@ if query_params.get("admin") == "true":
         tab1, tab2 = st.tabs(["📋 Historial de Pedidos", "💰 Gestionar Precios"])
         
         with tab1:
+            st.subheader("Registros de Ventas")
             try:
                 conn = conectar_db()
                 df_pedidos = pd.read_sql("SELECT fecha, order_id, cliente, total_pagar, detalle_items FROM pedidos ORDER BY fecha DESC", conn)
@@ -79,6 +81,7 @@ if query_params.get("admin") == "true":
 
         with tab2:
             st.subheader("🛠️ Editor Maestro de Menú")
+            # Aquí pegas tu código del st.data_editor que ya teníamos
             st.caption("Escribe el nombre del producto, el precio y el nombre exacto de la foto (ej: baho.jpeg).")
             
             try:
