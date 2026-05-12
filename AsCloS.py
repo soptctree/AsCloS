@@ -147,10 +147,12 @@ if query_params.get("admin") == "true":
                     total_dinero = df_hoy['total_pagar'].sum()
                     col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
 
-                    # --- LÓGICA PARA GENERAR EXCEL ---
+                    # --- GENERAR EXCEL (.xlsx) ---
                     import io
                     output = io.BytesIO()
-                   with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    
+                    # Usamos 'openpyxl' que es estándar en Streamlit Cloud
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
                         df_resumen.to_excel(writer, index=False, sheet_name='Corte_del_Dia')
                         
                         # Accedemos al libro para agregar el total al final
