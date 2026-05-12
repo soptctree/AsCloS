@@ -147,27 +147,28 @@ if query_params.get("admin") == "true":
                     total_dinero = df_hoy['total_pagar'].sum()
                     col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
 
-                    # --- GENERAR EXCEL (.xlsx) ---
+                    # --- GENERAR EXCEL CON XLSXWRITER ---
                     import io
                     output = io.BytesIO()
                     
-                    # Usamos 'openpyxl' que es estándar en Streamlit Cloud
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df_resumen.to_excel(writer, index=False, sheet_name='Corte_del_Dia')
+                    # Ahora sí funcionará porque ya lo instalamos en el Paso 1
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df_resumen.to_excel(writer, index=False, sheet_name='Corte_Caja')
                         
-                        # Accedemos al libro para agregar el total al final
-                        workbook = writer.book
-                        worksheet = writer.sheets['Corte_del_Dia']
-                        last_row = len(df_resumen) + 2
+                        # Formatos opcionales
+                        workbook  = writer.book
+                        worksheet = writer.sheets['Corte_Caja']
+                        format_total = workbook.add_format({'bold': True, 'font_color': 'red'})
                         
-                        worksheet.cell(row=last_row, column=1, value="TOTAL VENTA:")
-                        worksheet.cell(row=last_row, column=2, value=total_dinero)
+                        # Escribir el total al final
+                        fila_total = len(df_resumen) + 2
+                        worksheet.write(fila_total, 0, "TOTAL VENTA", format_total)
+                        worksheet.write(fila_total, 1, total_dinero, format_total)
 
-                    # Botón de descarga
                     col_descarga.download_button(
-                        label="📥 Descargar Excel",
+                        label="📥 Descargar Excel Real",
                         data=output.getvalue(),
-                        file_name=f"Corte_Caja_{time.strftime('%d_%m_%Y')}.xlsx",
+                        file_name=f"Corte_Asados_{time.strftime('%d_%m_%Y')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
