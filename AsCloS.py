@@ -72,14 +72,53 @@ if query_params.get("admin") == "true":
         tab1, tab2 = st.tabs(["📋 Historial de Pedidos", "💰 Gestionar Precios"])
         
         with tab1:
-            st.subheader("Registros de Ventas")
+            st.subheader("🛎️ Recepción de Pedidos Nuevos")
+            
             try:
                 conn = conectar_db()
-                df_pedidos = pd.read_sql("SELECT fecha, order_id, cliente, total_pagar, detalle_items FROM pedidos ORDER BY fecha DESC", conn)
+                # 1. Traer solo los pendientes
+                query_pendientes = "SELECT * FROM pedidos WHERE estado = 'Pendiente' ORDER BY fecha DESC"
+                df_pendientes = pd.read_sql(query_pendientes, conn)
+                
+                if not df_pendientes.empty:
+                    for i, row in df_pendientes.iterrows():
+                        with st.container(border=True):
+                            col_info, col_acc = st.columns([3, 1])
+                            with col_info:
+                                st.write(f"**Pedido:** {row['order_id']} | **Cliente:** {row['cliente']}")
+                                st.write(f"**Detalle:** {row['detalle_items']}")
+                                st.write(f"**Total:** C$ {row['total_pagar']}")
+                            
+                            with col_acc:
+                                # Botones para gestionar el pedido
+                                if st.button("✅ Confirmar Venta", key=f"conf_{row['order_id']}"):
+                                    cursor = conn.cursor()
+                                    cursor.execute("UPDATE pedidos SET estado = 'Confirmado' WHERE order_id = %s", (row['order_id'],))
+                                    conn.commit()
+                                    st.success("Venta registrada")
+                                    st.rerun()
+                                
+                                if st.button("❌ Cancelar / Duplicado", key=f"can_{row['order_id']}"):
+                                    cursor = conn.cursor()
+                                    cursor.execute("UPDATE pedidos SET estado = 'Cancelado' WHERE order_id = %s", (row['order_id'],))
+                                    conn.commit()
+                                    st.warning("Pedido descartado")
+                                    st.rerun()
+                else:
+                    st.info("No hay pedidos nuevos por el momento.")
+
+                st.divider()
+                
+                # 2. Sección de Ventas Reales (Historial)
+                st.subheader("💰 Historial de Ventas Reales")
+                query_ventas = "SELECT fecha, cliente, total_pagar, detalle_items FROM pedidos WHERE estado = 'Confirmado' ORDER BY fecha DESC"
+                df_ventas = pd.read_sql(query_ventas, conn)
+                st.dataframe(df_ventas, use_container_width=True)
+                
                 conn.close()
-                st.dataframe(df_pedidos, use_container_width=True)
+                
             except Exception as e:
-                st.error(f"Error al cargar pedidos: {e}")
+                st.error(f"Error en recepción: {e}")
 
         with tab2:
             if "upload_key" not in st.session_state:
