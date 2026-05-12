@@ -75,8 +75,10 @@ if query_params.get("admin") == "true":
             st.subheader("🛎️ Recepción de Pedidos Nuevos")
             
             try:
+                # Abrimos una única conexión para todo el Tab
                 conn = conectar_db()
-                # 1. Traer solo los pendientes
+                
+                # --- PARTE 1: RECEPCIÓN ---
                 query_pendientes = "SELECT * FROM pedidos WHERE estado = 'Pendiente' ORDER BY fecha DESC"
                 df_pendientes = pd.read_sql(query_pendientes, conn)
                 
@@ -90,7 +92,6 @@ if query_params.get("admin") == "true":
                                 st.write(f"**Total:** C$ {row['total_pagar']}")
                             
                             with col_acc:
-                                # Botones para gestionar el pedido
                                 if st.button("✅ Confirmar Venta", key=f"conf_{row['order_id']}"):
                                     cursor = conn.cursor()
                                     cursor.execute("UPDATE pedidos SET estado = 'Confirmado' WHERE order_id = %s", (row['order_id'],))
@@ -106,56 +107,52 @@ if query_params.get("admin") == "true":
                                     st.rerun()
                 else:
                     st.info("No hay pedidos nuevos por el momento.")
+
+                st.divider()
+
+                # --- PARTE 2: RESUMEN DEL DÍA ---
+                st.subheader("📊 Resumen de Ventas Actual")
                 
-                conn.close() # Cerramos la conexión aquí
+                # Usamos la misma 'conn' que ya está abierta
+                query_hoy = "SELECT detalle_items, total_pagar FROM pedidos WHERE estado = 'Confirmado' AND cierre_caja = 0"
+                df_hoy = pd.read_sql(query_hoy, conn)
+
+                if not df_hoy.empty:
+                    col_total, col_cierre = st.columns([2, 1])
+                    total_dinero = df_hoy['total_pagar'].sum()
+                    col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
+
+                    st.write("**Detalle de productos vendidos:**")
+                    conteo_productos = {}
+                    for items in df_hoy['detalle_items']:
+                        for parte in items.split(','):
+                            parte = parte.strip()
+                            if "x " in parte:
+                                try:
+                                    cantidad = int(parte.split('x ')[0])
+                                    nombre_prod = parte.split('x ')[1].split(' (')[0].strip()
+                                    conteo_productos[nombre_prod] = conteo_productos.get(nombre_prod, 0) + cantidad
+                                except: continue
+                    
+                    for prod, cant in conteo_productos.items():
+                        st.write(f"🔸 {cant}x {prod}")
+
+                    if col_cierre.button("🏁 HACER CIERRE DE DÍA", type="primary", use_container_width=True):
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE pedidos SET cierre_caja = 1 WHERE cierre_caja = 0")
+                        conn.commit()
+                        st.success("✅ Cierre realizado.")
+                        import time
+                        time.sleep(2)
+                        st.rerun()
+                else:
+                    st.info("💡 Las ventas confirmadas aparecerán aquí.")
+
+                # CERRAMOS la conexión al final de todo
+                conn.close()
 
             except Exception as e:
-                st.error(f"Error al cargar pedidos: {e}")
-
-            st.divider()
-                
-                # --- SECCIÓN 2: RESUMEN DEL DÍA ---
-            st.subheader("📊 Resumen de Ventas Actual")
-            query_hoy = "SELECT detalle_items, total_pagar FROM pedidos WHERE estado = 'Confirmado' AND cierre_caja = 0"
-            df_hoy = pd.read_sql(query_hoy, conn)
-
-            if not df_hoy.empty:
-                col_total, col_cierre = st.columns([2, 1])
-                
-                # Calcular Total de Dinero
-                total_dinero = df_hoy['total_pagar'].sum()
-                col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
-
-                # --- LÓGICA PARA CONTAR PRODUCTOS (Tacos, Asados, etc.) ---
-                st.write("**Productos vendidos hoy:**")
-                conteo_productos = {}
-                for items in df_hoy['detalle_items']:
-                    # Separamos por coma si hay varios productos en un pedido
-                    for parte in items.split(','):
-                        parte = parte.strip()
-                        if "x " in parte:
-                            try:
-                                cantidad = int(parte.split('x ')[0])
-                                nombre_prod = parte.split('x ')[1].split(' (')[0]
-                                conteo_productos[nombre_prod] = conteo_productos.get(nombre_prod, 0) + cantidad
-                            except: continue
-                
-                # Mostrar el conteo en una tablita limpia
-                for prod, cant in conteo_productos.items():
-                    st.write(f"🔸 {cant}x {prod}")
-
-                # --- BOTÓN DE CIERRE DE DÍA ---
-                if col_cierre.button("🏁 HACER CIERRE DE DÍA", type="primary", use_container_width=True):
-                    cursor = conn.cursor()
-                    cursor.execute("UPDATE pedidos SET cierre_caja = 1 WHERE cierre_caja = 0")
-                    conn.commit()
-                    st.success("✅ Cierre realizado. ¡Buen trabajo hoy!")
-                    time.sleep(2)
-                    st.rerun()
-            else:
-                st.warning("Aún no hay ventas confirmadas para el resumen.")
-
-            conn.close()
+                st.error(f"Error en el Tab de Pedidos: {e}")
 
         with tab2:
             if "upload_key" not in st.session_state:
