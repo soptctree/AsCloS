@@ -109,16 +109,48 @@ if query_params.get("admin") == "true":
 
                 st.divider()
                 
-                # 2. Sección de Ventas Reales (Historial)
-                st.subheader("💰 Historial de Ventas Reales")
-                query_ventas = "SELECT fecha, cliente, total_pagar, detalle_items FROM pedidos WHERE estado = 'Confirmado' ORDER BY fecha DESC"
-                df_ventas = pd.read_sql(query_ventas, conn)
-                st.dataframe(df_ventas, use_container_width=True)
+                # --- SECCIÓN 2: RESUMEN DEL DÍA ---
+            st.subheader("📊 Resumen de Ventas Actual")
+            query_hoy = "SELECT detalle_items, total_pagar FROM pedidos WHERE estado = 'Confirmado' AND cierre_caja = 0"
+            df_hoy = pd.read_sql(query_hoy, conn)
+
+            if not df_hoy.empty:
+                col_total, col_cierre = st.columns([2, 1])
                 
-                conn.close()
+                # Calcular Total de Dinero
+                total_dinero = df_hoy['total_pagar'].sum()
+                col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
+
+                # --- LÓGICA PARA CONTAR PRODUCTOS (Tacos, Asados, etc.) ---
+                st.write("**Productos vendidos hoy:**")
+                conteo_productos = {}
+                for items in df_hoy['detalle_items']:
+                    # Separamos por coma si hay varios productos en un pedido
+                    for parte in items.split(','):
+                        parte = parte.strip()
+                        if "x " in parte:
+                            try:
+                                cantidad = int(parte.split('x ')[0])
+                                nombre_prod = parte.split('x ')[1].split(' (')[0]
+                                conteo_productos[nombre_prod] = conteo_productos.get(nombre_prod, 0) + cantidad
+                            except: continue
                 
-            except Exception as e:
-                st.error(f"Error en recepción: {e}")
+                # Mostrar el conteo en una tablita limpia
+                for prod, cant in conteo_productos.items():
+                    st.write(f"🔸 {cant}x {prod}")
+
+                # --- BOTÓN DE CIERRE DE DÍA ---
+                if col_cierre.button("🏁 HACER CIERRE DE DÍA", type="primary", use_container_width=True):
+                    cursor = conn.cursor()
+                    cursor.execute("UPDATE pedidos SET cierre_caja = 1 WHERE cierre_caja = 0")
+                    conn.commit()
+                    st.success("✅ Cierre realizado. ¡Buen trabajo hoy!")
+                    time.sleep(2)
+                    st.rerun()
+            else:
+                st.warning("Aún no hay ventas confirmadas para el resumen.")
+
+            conn.close()
 
         with tab2:
             if "upload_key" not in st.session_state:
