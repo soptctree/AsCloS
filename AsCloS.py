@@ -137,6 +137,8 @@ if query_params.get("admin") == "true":
                     # Mostramos la tabla profesional
                     st.table(df_resumen)
 
+                    
+
                     # Total y Botones
                     col_total, col_descarga, col_cierre = st.columns([1.5, 1, 1])
                     
@@ -169,6 +171,8 @@ if query_params.get("admin") == "true":
                         st.rerun()
                 else:
                     st.info("💡 Las ventas confirmadas aparecerán aquí en formato de tabla.")
+            except Exception as e:
+                st.error(f"Error en el resumen: {e}")        
 
         with tab2:
             if "upload_key" not in st.session_state:
