@@ -8,6 +8,8 @@ import mysql.connector
 import base64
 import requests
 import time
+import io
+output = io.BytesIO()
 
 # --- CONFIGURACIÓN DE IDENTIDAD ---
 NUMERO_NEGOCIO = "50558222234" 
@@ -148,17 +150,22 @@ if query_params.get("admin") == "true":
                     # --- LÓGICA PARA GENERAR EXCEL ---
                     import io
                     output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df_resumen.to_excel(writer, index=False, sheet_name='Corte_Caja')
-                        # Agregamos el total al final del Excel
-                        worksheet = writer.sheets['Corte_Caja']
-                        worksheet.write(len(df_resumen) + 2, 0, "TOTAL VENTA")
-                        worksheet.write(len(df_resumen) + 2, 1, total_dinero)
-                    
+                   with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_resumen.to_excel(writer, index=False, sheet_name='Corte_del_Dia')
+                        
+                        # Accedemos al libro para agregar el total al final
+                        workbook = writer.book
+                        worksheet = writer.sheets['Corte_del_Dia']
+                        last_row = len(df_resumen) + 2
+                        
+                        worksheet.cell(row=last_row, column=1, value="TOTAL VENTA:")
+                        worksheet.cell(row=last_row, column=2, value=total_dinero)
+
+                    # Botón de descarga
                     col_descarga.download_button(
                         label="📥 Descargar Excel",
                         data=output.getvalue(),
-                        file_name=f"Corte_Caja_{time.strftime('%Y%m%d')}.xlsx",
+                        file_name=f"Corte_Caja_{time.strftime('%d_%m_%Y')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
