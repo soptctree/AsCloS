@@ -106,6 +106,8 @@ if query_params.get("admin") == "true":
                                     st.rerun()
                 else:
                     st.info("No hay pedidos nuevos por el momento.")
+                except Exception as e:
+                st.error(f"Error al cargar pedidos: {e}")
 
                 st.divider()
                 
