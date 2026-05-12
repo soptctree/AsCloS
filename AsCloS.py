@@ -325,12 +325,9 @@ if query_params.get("admin") == "true":
     
                     conn.close()
 
-    except Exception as e:
-                st.error(f"Error al cargar historial: {e}")
+                except Exception as e:
+                   st.error(f"Error al cargar historial: {e}")
  
-
-
-
 
 else:
     # =========================================================
