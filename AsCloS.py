@@ -110,19 +110,13 @@ if query_params.get("admin") == "true":
 
                 st.divider()
 
-                # --- PARTE 2: RESUMEN DEL DÍA ---
+                # --- PARTE 2: RESUMEN DEL DÍA (ESTILO TABLA) ---
                 st.subheader("📊 Resumen de Ventas Actual")
                 
-                # Usamos la misma 'conn' que ya está abierta
                 query_hoy = "SELECT detalle_items, total_pagar FROM pedidos WHERE estado = 'Confirmado' AND cierre_caja = 0"
                 df_hoy = pd.read_sql(query_hoy, conn)
 
                 if not df_hoy.empty:
-                    col_total, col_cierre = st.columns([2, 1])
-                    total_dinero = df_hoy['total_pagar'].sum()
-                    col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
-
-                    st.write("**Detalle de productos vendidos:**")
                     conteo_productos = {}
                     for items in df_hoy['detalle_items']:
                         for parte in items.split(','):
@@ -134,25 +128,47 @@ if query_params.get("admin") == "true":
                                     conteo_productos[nombre_prod] = conteo_productos.get(nombre_prod, 0) + cantidad
                                 except: continue
                     
-                    for prod, cant in conteo_productos.items():
-                        st.write(f"🔸 {cant}x {prod}")
+                    # Convertimos el conteo a un DataFrame para mostrar la tabla
+                    df_resumen = pd.DataFrame([
+                        {"Producto": prod, "Cantidad": cant} 
+                        for prod, cant in conteo_productos.items()
+                    ])
+                    
+                    # Mostramos la tabla profesional
+                    st.table(df_resumen)
 
-                    if col_cierre.button("🏁 HACER CIERRE DE DÍA", type="primary", use_container_width=True):
+                    # Total y Botones
+                    col_total, col_descarga, col_cierre = st.columns([1.5, 1, 1])
+                    
+                    total_dinero = df_hoy['total_pagar'].sum()
+                    col_total.metric("VENTA TOTAL", f"C$ {total_dinero}")
+
+                    # --- LÓGICA PARA GENERAR EXCEL ---
+                    import io
+                    output = io.BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        df_resumen.to_excel(writer, index=False, sheet_name='Corte_Caja')
+                        # Agregamos el total al final del Excel
+                        worksheet = writer.sheets['Corte_Caja']
+                        worksheet.write(len(df_resumen) + 2, 0, "TOTAL VENTA")
+                        worksheet.write(len(df_resumen) + 2, 1, total_dinero)
+                    
+                    col_descarga.download_button(
+                        label="📥 Descargar Excel",
+                        data=output.getvalue(),
+                        file_name=f"Corte_Caja_{time.strftime('%Y%m%d')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+
+                    if col_cierre.button("🏁 CIERRE DE DÍA", type="primary", use_container_width=True):
                         cursor = conn.cursor()
                         cursor.execute("UPDATE pedidos SET cierre_caja = 1 WHERE cierre_caja = 0")
                         conn.commit()
-                        st.success("✅ Cierre realizado.")
-                        import time
+                        st.success("✅ Cierre realizado correctamente.")
                         time.sleep(2)
                         st.rerun()
                 else:
-                    st.info("💡 Las ventas confirmadas aparecerán aquí.")
-
-                # CERRAMOS la conexión al final de todo
-                conn.close()
-
-            except Exception as e:
-                st.error(f"Error en el Tab de Pedidos: {e}")
+                    st.info("💡 Las ventas confirmadas aparecerán aquí en formato de tabla.")
 
         with tab2:
             if "upload_key" not in st.session_state:
