@@ -7,6 +7,7 @@ import os
 import mysql.connector
 import base64
 import requests
+import time
 
 # --- CONFIGURACIÓN DE IDENTIDAD ---
 NUMERO_NEGOCIO = "50558222234" 
@@ -109,7 +110,9 @@ if query_params.get("admin") == "true":
                                 response = requests.put(url, json=datos, headers=headers)
                                 
                                 if response.status_code in [200, 201]:
-                                    st.success(f"✅ ¡Foto subida con éxito! Ahora en la tabla de abajo, en la columna 'Foto (Archivo)', escribe exactamente: **{nombre_archivo_github}**")
+                                    st.success(f"✅ ¡Foto subida con éxito! Ahora en la tabla de abajo, en la columna 'Foto (Archivo)', escribe exactamente: {nombre_archivo_github}")
+                                    time.sleep(2) # Esperamos 2 segundos para que el cliente vea el check verde
+                                    st.rerun()    # Esto refresca la app y limpia el cargador
                                 else:
                                     st.error(f"Error al subir: {response.json().get('message')}")
                             except Exception as e:
