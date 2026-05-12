@@ -460,7 +460,7 @@ else:
             
             st.caption("Nota: Al presionar 'Hacer nuevo pedido', se limpiará tu carrito actual.")
 
-            with tab3:
+        with tab3:
                 st.subheader("📜 Historial de Ventas y Cierres")
                 
                 try:
@@ -498,5 +498,5 @@ else:
     
                     conn.close()
 
-            except Exception as e:
+        except Exception as e:
                 st.error(f"Error al cargar historial: {e}")
