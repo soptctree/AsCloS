@@ -459,15 +459,14 @@ else:
                     st.rerun()
             
             st.caption("Nota: Al presionar 'Hacer nuevo pedido', se limpiará tu carrito actual.")
-# Creamos el tercer tab en la lista de tabs
-        # (Asegúrate de haber definido 3 tabs al inicio: tab1, tab2, tab3 = st.tabs(...))
-        with tab3:
+
+with tab3:
             st.subheader("📜 Historial de Ventas y Cierres")
             
             try:
                 conn = conectar_db()
                 
-                # Buscamos todos los pedidos que ya fueron confirmados y cerrados
+                # Buscamos pedidos confirmados y cerrados
                 query_historial = """
                     SELECT fecha, cliente, detalle_items, total_pagar 
                     FROM pedidos 
@@ -477,30 +476,27 @@ else:
                 df_historial = pd.read_sql(query_historial, conn)
                 
                 if not df_historial.empty:
-                    # Filtro por fecha para que no sea una lista infinita
-                    filtro_fecha = st.date_input("Filtrar por fecha específica", value=None)
+                    # (Aquí va tu código de filtros y st.dataframe que ya tienes)
+                    filtro_fecha = st.date_input("📅 Selecciona una fecha para revisar", value=None)
                     
                     if filtro_fecha:
-                        # Convertimos la columna fecha para comparar
                         df_historial['fecha_solo'] = pd.to_datetime(df_historial['fecha']).dt.date
                         df_filtrado = df_historial[df_historial['fecha_solo'] == filtro_fecha]
                     else:
                         df_filtrado = df_historial
 
-                    # Mostramos la tabla de historial
-                    st.dataframe(
-                        df_filtrado[['fecha', 'cliente', 'detalle_items', 'total_pagar']], 
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                    
-                    # Resumen rápido del historial visible
-                    total_historico = df_filtrado['total_pagar'].sum()
-                    st.info(f"💰 Suma total del historial mostrado: **C$ {total_historico}**")
-                    
-                else:
-                    st.warning("Aún no hay cierres de caja registrados en el historial.")
+                    st.dataframe(df_filtrado[['fecha', 'cliente', 'detalle_items', 'total_pagar']], use_container_width=True)
                 
+                else:
+                    # --- ESTE ES EL MENSAJE QUE BUSCAS ---
+                    st.info("👋 ¡Hola! El historial está vacío por ahora.")
+                    st.warning("⚠️ **Nota:** Los pedidos de hoy aparecerán aquí **solamente después** de que realices el 'Cierre de Día' en la pestaña de Recepción.")
+                    
+                    # Opcional: Un botón que lo mande de vuelta a la recepción
+                    if st.button("Ir a Recepción para cerrar"):
+                        st.switch_page("AsCloS.py") # O el nombre exacto de tu archivo principal
+
                 conn.close()
+
             except Exception as e:
-                st.error(f"Error al cargar el historial: {e}")
+                st.error(f"Error al cargar historial: {e}")
