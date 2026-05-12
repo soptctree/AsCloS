@@ -288,45 +288,76 @@ if query_params.get("admin") == "true":
             except Exception as e:
                 st.error(f"Error de conexión: {e}")
         with tab3:
-                st.subheader("📜 Historial de Ventas y Cierres")
+    st.subheader("📜 Historial de Ventas y Cierres")
+    try:
+        conn = conectar_db()
+        # Traemos todos los pedidos ya cerrados
+        query_historial = "SELECT fecha, detalle_items, total_pagar FROM pedidos WHERE estado = 'Confirmado' AND cierre_caja = 1 ORDER BY fecha DESC"
+        df_historial = pd.read_sql(query_historial, conn)
+        
+        if not df_historial.empty:
+            filtro_fecha = st.date_input("📅 Selecciona una fecha para exportar", value=None)
+            
+            if filtro_fecha:
+                # Filtrar el DataFrame por la fecha seleccionada
+                df_historial['fecha_solo'] = pd.to_datetime(df_historial['fecha']).dt.date
+                df_dia = df_historial[df_historial['fecha_solo'] == filtro_fecha]
                 
-                try:
-                    conn = conectar_db()
+                if not df_dia.empty:
+                    # --- PROCESAMIENTO DE DATOS PARA EL EXCEL ---
+                    conteo_dia = {}
+                    for items in df_dia['detalle_items']:
+                        for parte in items.split(','):
+                            parte = parte.strip()
+                            if "x " in parte:
+                                try:
+                                    cantidad = int(parte.split('x ')[0])
+                                    nombre_prod = parte.split('x ')[1].split(' (')[0].strip()
+                                    conteo_dia[nombre_prod] = conteo_dia.get(nombre_prod, 0) + cantidad
+                                except: continue
                     
-                    # Buscamos pedidos confirmados y cerrados
-                    query_historial = """
-                        SELECT fecha, cliente, detalle_items, total_pagar 
-                        FROM pedidos 
-                        WHERE estado = 'Confirmado' AND cierre_caja = 1 
-                        ORDER BY fecha DESC
-                    """
-                    df_historial = pd.read_sql(query_historial, conn)
+                    df_excel = pd.DataFrame([{"Producto": p, "Cantidad": c} for p, c in conteo_dia.items()])
+                    total_dinero_dia = df_dia['total_pagar'].sum()
                     
-                    if not df_historial.empty:
-                        # (Aquí va tu código de filtros y st.dataframe que ya tienes)
-                        filtro_fecha = st.date_input("📅 Selecciona una fecha para revisar", value=None)
+                    # --- GENERACIÓN DEL EXCEL ---
+                    output_h = io.BytesIO()
+                    with pd.ExcelWriter(output_h, engine='xlsxwriter') as writer:
+                        df_excel.to_excel(writer, index=False, sheet_name='Cierre_Dia')
                         
-                        if filtro_fecha:
-                            df_historial['fecha_solo'] = pd.to_datetime(df_historial['fecha']).dt.date
-                            df_filtrado = df_historial[df_historial['fecha_solo'] == filtro_fecha]
-                        else:
-                            df_filtrado = df_historial
-    
-                        st.dataframe(df_filtrado[['fecha', 'cliente', 'detalle_items', 'total_pagar']], use_container_width=True)
-                    
-                    else:
-                        # --- ESTE ES EL MENSAJE QUE BUSCAS ---
-                        st.info("👋 ¡Hola! El historial está vacío por ahora.")
-                        st.warning("⚠️ **Nota:** Los pedidos de hoy aparecerán aquí **solamente después** de que realices el 'Cierre de Día' en la pestaña de Recepción.")
+                        workbook = writer.book
+                        worksheet = writer.sheets['Cierre_Dia']
                         
-                        # Opcional: Un botón que lo mande de vuelta a la recepción
-                        if st.button("Ir a Recepción para cerrar"):
-                            st.switch_page("AsCloS.py") # O el nombre exacto de tu archivo principal
-    
-                    conn.close()
-
-                except Exception as e:
-                   st.error(f"Error al cargar historial: {e}")
+                        # Formatos
+                        fmt_header = workbook.add_format({'bold': True, 'bg_color': '#d32f2f', 'font_color': 'white'})
+                        fmt_total = workbook.add_format({'bold': True, 'font_color': 'red', 'top': 1})
+                        
+                        # Aplicar encabezado
+                        for col_num, value in enumerate(df_excel.columns.values):
+                            worksheet.write(0, col_num, value, fmt_header)
+                        
+                        # Escribir el total al final
+                        ultima_fila = len(df_excel) + 2
+                        worksheet.write(ultima_fila, 0, "TOTAL VENDIDO", fmt_total)
+                        worksheet.write(ultima_fila, 1, total_dinero_dia, fmt_total)
+                    
+                    st.success(f"Reporte listo para el {filtro_fecha}")
+                    st.download_button(
+                        label=f"📥 Descargar Excel {filtro_fecha}",
+                        data=output_h.getvalue(),
+                        file_name=f"Cierre_Asados_{filtro_fecha}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                    
+                    # Mostrar la tabla en pantalla también
+                    st.table(df_excel)
+                else:
+                    st.warning("No hay registros de cierre para esa fecha específica.")
+        else:
+            st.info("El historial está vacío.")
+        conn.close()
+    except Exception as e:
+        st.error(f"Error al generar reporte: {e}")
  
 
 else:
