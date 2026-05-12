@@ -82,26 +82,36 @@ if query_params.get("admin") == "true":
                 st.error(f"Error al cargar pedidos: {e}")
 
         with tab2:
+            if "upload_key" not in st.session_state:
+                st.session_state.upload_key = 0
+
             st.subheader("🛠️ Editor Maestro de Menú")
             st.markdown("### 📸 Subir Foto Real del Producto")
+            
             with st.expander("Abrir cargador de imágenes"):
-                foto_subida = st.file_uploader("Selecciona la foto desde tu celular", type=['jpg', 'jpeg', 'png'])
-                nombre_archivo_github = st.text_input("Dale un nombre a la foto (ej: asado_nuevo.jpg)")
+                # 2. Widgets con key dinámica (16 espacios de sangría)
+                foto_subida = st.file_uploader(
+                    "Selecciona la foto desde tu celular", 
+                    type=['jpg', 'jpeg', 'png'],
+                    key=f"foto_{st.session_state.upload_key}"
+                )
+                nombre_archivo_github = st.text_input(
+                    "Dale un nombre a la foto (ej: asado_nuevo.jpg)",
+                    key=f"nombre_{st.session_state.upload_key}"
+                )
                 
                 if st.button("🚀 Publicar Foto en la App"):
                     if foto_subida and nombre_archivo_github:
                         with st.spinner("Subiendo foto a la nube..."):
                             try:
-                                # Sacamos los datos de los Secretos de Streamlit
                                 token = st.secrets["GITHUB_TOKEN"]
                                 repo = st.secrets["REPO_NAME"]
                                 url = f"https://api.github.com/repos/{repo}/contents/{nombre_archivo_github}"
                                 
-                                # Convertimos la imagen a un formato que GitHub entienda (Base64)
                                 contenido = base64.b64encode(foto_subida.read()).decode()
                                 
                                 datos = {
-                                    "message": f"Nueva foto subida por cliente: {nombre_archivo_github}",
+                                    "message": f"Nueva foto subida: {nombre_archivo_github}",
                                     "content": contenido,
                                     "branch": "main" 
                                 }
@@ -110,9 +120,14 @@ if query_params.get("admin") == "true":
                                 response = requests.put(url, json=datos, headers=headers)
                                 
                                 if response.status_code in [200, 201]:
-                                    st.success(f"✅ ¡Foto subida con éxito! Ahora en la tabla de abajo, en la columna 'Foto (Archivo)', escribe exactamente: {nombre_archivo_github}")
-                                    time.sleep(2) # Esperamos 2 segundos para que el cliente vea el check verde
-                                    st.rerun()    # Esto refresca la app y limpia el cargador
+                                    st.success(f"✅ ¡Foto subida con éxito! Nombre: {nombre_archivo_github}")
+                                    
+                                    # 3. Incrementar key para limpiar widgets
+                                    st.session_state.upload_key += 1
+                                    
+                                    import time
+                                    time.sleep(2) 
+                                    st.rerun()    
                                 else:
                                     st.error(f"Error al subir: {response.json().get('message')}")
                             except Exception as e:
