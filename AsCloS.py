@@ -22,12 +22,12 @@ st.set_page_config(page_title="Asados García Jiménez - Ometepe", page_icon="�
 # --- CONEXIÓN A BASE DE DATOS ---
 def conectar_db():
     return mysql.connector.connect(
-        host="gateway01.us-east-1.prod.aws.tidbcloud.com",
-        user="4Lu2TDuy2Wz3k9j.root",
-        password="rDz6pwkzY2ZRyFv1",
-        database="asclos_db",
-        port=4000,
-        ssl_ca="isrgrootx1.pem" 
+        host=st.secrets["tidb"]["host"],
+        user=st.secrets["tidb"]["user"],
+        password=st.secrets["tidb"]["password"],
+        database=st.secrets["tidb"]["database"],
+        port=st.secrets["tidb"]["port"],
+        ssl_ca="isrgrootx1.pem"
     )
 
 # --- FUNCIONES DE DATOS ---
